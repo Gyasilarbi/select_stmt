@@ -1,39 +1,51 @@
 <?php
-	session_start();
- 
-	require_once 'config.php';
- 
-	if(ISSET($_POST['login'])){
-		if($_POST['email'] != "" && $_POST['password'] != ""){
-			$email = $_POST['email'];
-			$password = $_POST['password'];
 
-			$sql = "SELECT * FROM customers WHERE email=:email AND password=:password LIMIT 1";
+include "config.php";
 
-			$stmt = $conn->prepare($sql);
-			$stmt->execute(array($email,$password));
-			$row = $stmt->rowCount();
-			$fetch = $stmt->fetch();
+$email = $password = "";
 
-			if($row > 0) {
-				$_SESSION['user'] = $fetch['id'];
-				header("location: home.php");
-			} else{
-				$_SESSION["status"] = true;
-				$_SESSION["message"] = "Login failed";
-				header("location: customer_login_form.php");
-			}
+if ($_SERVER["REQUEST_METHOD"] === "POST") {
+    if (empty($_POST['email']) || empty($_POST['password'])) {
+        $_SESSION["status"] = true;
+        $_SESSION["message"] = "Mandatory fields are required";
+        header("Location: admin_login.php");
+        die();
+    } else {
+        $email = test_input($_POST["email"]);
+        $password = $_POST["password"];
 
-		}else{
-			$_SESSION["status"] = true;
-			$_SESSION["message"] = $stmt->errorInfo();
-			header("location: customer_login_form");
-			die();
-		}
-	}
+        $sql = "SELECT * FROM admins WHERE email = :email AND pwd = :password LIMIT 1";
+        $stmt = $conn->prepare($sql);
+        $stmt->bindParam(":email", $email);
+        $stmt->bindParam(":password", $password);
 
-    $errorInfo = $stmt->errorInfo();
-    print_r($errorInfo);
+        try {
+            $stmt->execute();
+            if ($stmt->rowCount() > 0) {
+                $_SESSION["status"] = false;
+                $_SESSION["message"] = "Login successful";
+                header("Location: admin_page.php");
+                die();
+            } else {
+                $_SESSION["status"] = true;
+                $_SESSION["message"] = "Login failed";
+                header("Location: admin_login.php");
+                die();
+            }
+        } catch (PDOException $e) {
+            $_SESSION["status"] = true;
+            $_SESSION["message"] = "Database error: " . $e->getMessage();
+            header("Location: admin_login.php");
+            die();
+        }
+    }
+}
 
-
+function test_input($data)
+{
+    $data = trim($data);
+    $data = stripslashes($data);
+    $data = htmlspecialchars($data);
+    return $data;
+}
 ?>
